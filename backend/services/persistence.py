@@ -113,8 +113,14 @@ class AsyncPersistence:
         await supabase.table("agent_sessions").upsert(session_data).execute()
         
         # 2. Sync Patient Health Status
+        _VALID_STAGES = {"Precontemplation", "Contemplation", "Preparation", "Action", "Maintenance"}
         readiness_stage = state.patient_profile.readiness_stage or state.patient_profile.motivation_level
-        risk_level = state.patient_profile.diabetes_risk_score.value if hasattr(state.patient_profile.diabetes_risk_score, "value") else str(state.patient_profile.diabetes_risk_score)
+        if not readiness_stage or readiness_stage not in _VALID_STAGES:
+            readiness_stage = "Precontemplation"
+        # RiskLevel enum uses "Moderate" but Supabase constraint requires "Medium"
+        _RISK_MAP = {"Low": "Low", "Moderate": "Medium", "High": "High"}
+        risk_level_raw = state.patient_profile.diabetes_risk_score.value if hasattr(state.patient_profile.diabetes_risk_score, "value") else str(state.patient_profile.diabetes_risk_score)
+        risk_level = _RISK_MAP.get(risk_level_raw, "Medium")
         
         health_status_data = {
             "prevent_id": prevent_id,

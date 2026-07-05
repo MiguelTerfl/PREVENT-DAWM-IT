@@ -56,3 +56,13 @@ def global_llm_mock():
         )
         mock_predict.return_value = mock_instance
         yield mock_predict
+
+@pytest.fixture(autouse=True)
+def clear_predictor_cache():
+    """
+    Clear MCPServer predictor_cache before each test so that mock reconfiguration
+    in individual tests takes effect (cache would otherwise retain the previous mock instance).
+    """
+    from backend.main import orchestrator
+    orchestrator.mcp_server.predictor_cache.clear()
+    yield

@@ -59,12 +59,16 @@ def test_full_journey_progression(client, global_llm_mock):
     This test simulates key milestones.
     """
     user_id = "journey_test_003"
-    
+
     # 1. Start at Intake (Identify/Inform)
     debug_resp = client.get(f"/api/debug/state/{user_id}")
     assert debug_resp.json()["current_agent"] == "intake"
-    
-    # 2. Reconfigure the global mock for transition behavior
+
+    # 2. First message triggers the IntakeAgent fast path (static welcome, no LLM call).
+    #    This seeds the conversation history so the next turn reaches the LLM.
+    client.post("/api/chat", json={"user_id": user_id, "user_input": "Hello"})
+
+    # 3. Reconfigure the global mock for name extraction + transition on the second turn.
     class MockResult:
         def __init__(self, response, extracted_name, next_step):
             self.response = response
@@ -76,17 +80,16 @@ def test_full_journey_progression(client, global_llm_mock):
         extracted_name="JourneyTest",
         next_step="transition_to_motivation"
     )
-    
-    # Reconfigure the global mock (injected via fixture)
+
     mock_instance = MagicMock()
     mock_instance.return_value = mock_prediction
     global_llm_mock.return_value = mock_instance
-    
+
     response = client.post("/api/chat", json={"user_id": user_id, "user_input": "My name is JourneyTest"})
-    
+
     if response.status_code != 200:
         pytest.fail(f"Chat request failed with {response.status_code}: {response.text}")
-        
+
     # Verify transition
     debug_resp = client.get(f"/api/debug/state/{user_id}")
     assert debug_resp.json()["current_agent"] == "motivation"
@@ -98,17 +101,20 @@ def test_resilience_rate_limiting(client, global_llm_mock):
     """
     import uuid
     user_id = f"chaos_user_{uuid.uuid4().hex[:8]}"
-    
+
+    # Prime the conversation to bypass the IntakeAgent fast path (no LLM call on first message)
+    client.post("/api/chat", json={"user_id": user_id, "user_input": "Hello"})
+
     # Configure the global mock to raise a rate limit error
     mock_instance = MagicMock()
     mock_instance.side_effect = Exception("429 Quota Exceeded")
     global_llm_mock.return_value = mock_instance
-    
+
     response = client.post("/api/chat", json={
-        "user_id": user_id, 
+        "user_id": user_id,
         "user_input": "help"
     })
-    
+
     # Rate limit exception should bubble up as 429
     assert response.status_code == 429
     assert "Rate Limit" in response.json()["detail"]
@@ -119,21 +125,24 @@ def test_malformed_llm_recovery(client, global_llm_mock):
     """
     import uuid
     user_id = f"robust_user_{uuid.uuid4().hex[:8]}"
-    
+
+    # Prime the conversation to bypass the IntakeAgent fast path (no LLM call on first message)
+    client.post("/api/chat", json={"user_id": user_id, "user_input": "Hello"})
+
     # Create a mock that returns an object with no 'response' attribute
     class MalformedResult:
         pass  # Empty result with no expected fields
-    
+
     # Configure global mock to return malformed data
     mock_instance = MagicMock()
     mock_instance.return_value = MalformedResult()
     global_llm_mock.return_value = mock_instance
-    
+
     response = client.post("/api/chat", json={
-        "user_id": user_id, 
+        "user_id": user_id,
         "user_input": "What is my risk?"
     })
-    
+
     # Should NOT be a 500 error; system must stringify or fallback
     assert response.status_code == 200
     # Check for the fallback message from the agent's defensive handling

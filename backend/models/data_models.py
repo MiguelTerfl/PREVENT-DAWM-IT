@@ -54,7 +54,7 @@ class AgentState(BaseModel):
     context_variables: Dict[str, Any] = {}
 
 class OrchestratorRequest(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None  # Overridden by JWT sub claim when auth is active
     user_input: str
 
 class OrchestratorResponse(BaseModel):

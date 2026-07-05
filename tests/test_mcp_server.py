@@ -1,9 +1,9 @@
 import pytest
+import asyncio
 import sys
 import os
 from unittest.mock import MagicMock, patch
 
-# Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.mcp_server.mcp_server import MCPServer
@@ -32,40 +32,37 @@ def mock_state():
         patient_profile=profile
     )
 
-@patch('dspy.Predict')
-def test_mcp_predict_context_injection(mock_predict, mock_state):
+@patch('backend.mcp_server.mcp_server.get_lm_stack')
+@patch('backend.mcp_server.mcp_server.dspy.Predict')
+def test_mcp_predict_context_injection(mock_predict, mock_get_lm, mock_state):
     """Verify that MCPServer correctly injects context into the predictor."""
-    # Setup mock
+    mock_get_lm.return_value = [MagicMock()]
     mock_predictor_instance = MagicMock()
+    mock_predictor_instance.return_value = MagicMock(response="OK")
     mock_predict.return_value = mock_predictor_instance
-    
+
     server = MCPServer()
-    server.predict(MotivationSignature, mock_state, user_input="I want to lose weight")
-    
-    # Check that dspy.Predict was called with the right signature
+    asyncio.run(server.predict(MotivationSignature, mock_state, user_input="I want to lose weight"))
+
     mock_predict.assert_called_with(MotivationSignature)
-    
-    # Check that the predictor was called with injected context
-    args, kwargs = mock_predictor_instance.call_args
+    _, kwargs = mock_predictor_instance.call_args
     assert "history" in kwargs
     assert "user" in kwargs["history"]
     assert "assistant" in kwargs["history"]
     assert kwargs["user_input"] == "I want to lose weight"
-    
-    # MotivationSignature doesn't have 'user_profile' or 'user_context' in its definition 
-    # but let's check if the MCPServer TRIED to inject them if they existed.
-    # (Checking the logic in mcp_server.py)
 
-@patch('dspy.Predict')
-def test_mcp_retry_logic(mock_predict, mock_state):
-    """Verify that MCP Server retries on failure."""
+@patch('backend.mcp_server.mcp_server.get_lm_stack')
+@patch('backend.mcp_server.mcp_server.dspy.Predict')
+def test_mcp_retry_logic(mock_predict, mock_get_lm, mock_state):
+    """Verify that MCPServer retries across each LM in the stack on failure."""
+    mock_lms = [MagicMock(), MagicMock(), MagicMock()]
+    mock_get_lm.return_value = mock_lms
+
     mock_predictor_instance = MagicMock()
-    # Fail twice, then succeed
     mock_predictor_instance.side_effect = [Exception("API Error"), Exception("Timeout"), MagicMock()]
     mock_predict.return_value = mock_predictor_instance
-    
+
     server = MCPServer()
-    server.predict(MotivationSignature, mock_state, user_input="test")
-    
-    # Should be called 3 times total
+    asyncio.run(server.predict(MotivationSignature, mock_state, user_input="test"))
+
     assert mock_predictor_instance.call_count == 3
