@@ -33,4 +33,14 @@ export const api = {
       return response.data;
     },
   },
+  profile: {
+    getOnboardingStatus: async () => {
+      const response = await apiClient.get('/api/profile/onboarding-status');
+      return response.data as { onboarding_completed: boolean };
+    },
+    completeOnboarding: async (name: string) => {
+      const response = await apiClient.post('/api/profile/complete-onboarding', { name });
+      return response.data;
+    },
+  },
 };

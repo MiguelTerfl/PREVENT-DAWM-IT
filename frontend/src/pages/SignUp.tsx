@@ -1,40 +1,41 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import Logo from '@/components/common/Logo'
 import GoogleButton from '@/components/common/GoogleButton'
-import { api } from '@/api/client'
 
-export default function Login() {
+export default function SignUp() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const { signIn, signInWithGoogle } = useAuth()
+  const { signUp, signInWithGoogle, session } = useAuth()
   const navigate = useNavigate()
+
+  // If Supabase auto-confirms (email confirmation disabled), a session
+  // appears right after signUp — send new users through onboarding first.
+  useEffect(() => {
+    if (session) navigate('/onboarding')
+  }, [session, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setMessage('')
     setLoading(true)
 
-    const { error } = await signIn(email, password)
+    const { error } = await signUp(email, password)
 
     if (error) {
       setError(error.message)
-      setLoading(false)
-      return
+    } else {
+      setMessage('Check your email to confirm your account.')
     }
-
-    try {
-      const { onboarding_completed } = await api.profile.getOnboardingStatus()
-      navigate(onboarding_completed ? '/dashboard' : '/onboarding')
-    } catch {
-      navigate('/onboarding')
-    }
+    setLoading(false)
   }
 
   const handleGoogle = async () => {
@@ -45,7 +46,6 @@ export default function Login() {
       setError(error.message)
       setGoogleLoading(false)
     }
-    // On success the browser redirects to Google, so no further action here.
   }
 
   return (
@@ -60,7 +60,7 @@ export default function Login() {
           <Logo className="w-12 h-12 opacity-90" />
           <div className="text-center">
             <p className="text-[0.65rem] font-normal tracking-[1.2em] text-primary uppercase mb-1">D A W N</p>
-            <h1 className="text-2xl font-extralight tracking-tight text-white">Welcome back.</h1>
+            <h1 className="text-2xl font-extralight tracking-tight text-white">Join the journey.</h1>
           </div>
         </div>
 
@@ -85,21 +85,16 @@ export default function Login() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              minLength={6}
               className="w-full pl-11 pr-5 py-4 bg-white/[0.04] border border-white/10 rounded-2xl text-sm font-light text-white placeholder:text-white/25 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07] transition-all"
             />
           </div>
 
-          <div className="flex justify-end -mt-1">
-            <Link
-              to="/forgot-password"
-              className="text-xs text-white/30 hover:text-primary/80 transition-colors font-light"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
           {error && (
             <p className="text-xs text-red-400/80 text-center font-light">{error}</p>
+          )}
+          {message && (
+            <p className="text-xs text-primary/80 text-center font-light">{message}</p>
           )}
 
           <motion.button
@@ -110,7 +105,7 @@ export default function Login() {
             className="dawn-button mt-2 flex items-center justify-center gap-2 disabled:opacity-40"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            SIGN IN
+            CREATE ACCOUNT
           </motion.button>
         </form>
 
@@ -120,15 +115,15 @@ export default function Login() {
           <div className="h-px flex-1 bg-white/10" />
         </div>
 
-        <GoogleButton onClick={handleGoogle} disabled={loading || googleLoading} />
+        <GoogleButton onClick={handleGoogle} disabled={loading || googleLoading} label="Sign up with Google" />
 
         <p className="text-center text-xs text-white/30 mt-8 font-light">
-          Don't have an account?{' '}
+          Already have an account?{' '}
           <Link
-            to="/signup"
+            to="/login"
             className="text-primary/70 hover:text-primary transition-colors underline-offset-2 hover:underline"
           >
-            Sign up
+            Sign in
           </Link>
         </p>
       </motion.div>

@@ -90,6 +90,29 @@ class AsyncPersistence:
 
         return prevent_id
 
+    async def get_onboarding_status(self, user_id: str) -> bool:
+        """
+        Returns whether the authenticated user has completed onboarding.
+        Returns False for users with no profile row yet (e.g. right after signup).
+        """
+        supabase = await get_supabase_client()
+        res = await supabase.table("profiles").select("onboarding_completed").eq("id", user_id).execute()
+        if res.data:
+            return bool(res.data[0].get("onboarding_completed"))
+        return False
+
+    async def complete_onboarding(self, user_id: str, display_name: str) -> None:
+        """
+        Marks onboarding as complete and stores the user's chosen nickname.
+        Provisions the patient/profile records first if this is the user's first write.
+        """
+        await self._get_or_create_prevent_id(user_id)
+        supabase = await get_supabase_client()
+        await supabase.table("profiles").update({
+            "display_name": display_name,
+            "onboarding_completed": True,
+        }).eq("id", user_id).execute()
+
     async def save_state(self, user_id: str, state: AgentState):
         """
         Saves the complete state of the agent session to Supabase.

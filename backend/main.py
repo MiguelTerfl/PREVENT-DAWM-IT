@@ -168,6 +168,9 @@ async def lookup_patient(name: str):
 from backend.api.admin import router as admin_router
 app.include_router(admin_router)
 
+from backend.api.profile import router as profile_router
+app.include_router(profile_router)
+
 @app.get("/api/debug/state/{user_id}")
 async def get_state_debug(user_id: str):
     """

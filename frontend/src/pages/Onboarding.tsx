@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import Logo from "@/components/common/Logo";
 import { Link, useNavigate } from 'react-router-dom';
+import { api } from '@/api/client';
 
 // Survey Data
 const surveyQuestions = [
@@ -38,9 +39,18 @@ export default function Onboarding() {
         setStep('welcome');
     };
 
+    const finishOnboarding = async (name: string) => {
+        try {
+            await api.profile.completeOnboarding(name);
+        } catch (err) {
+            console.error('Failed to persist onboarding completion', err);
+        }
+        navigate('/dashboard');
+    };
+
     const handleSurveyComplete = (answers: any) => {
         localStorage.setItem('surveyAnswers', JSON.stringify(answers));
-        navigate('/dashboard');
+        finishOnboarding(userName);
     };
 
     return (
@@ -48,7 +58,7 @@ export default function Onboarding() {
             <div className="container mx-auto h-full max-w-2xl px-6 flex flex-col justify-center z-10">
                 <div className="w-full flex flex-col justify-center">
                     {step === 'name_prompt' && <NamePromptScreen onNameSubmit={handleNameSubmit} />}
-                    {step === 'welcome' && <WelcomeScreen name={userName} onStart={() => setStep('survey')} onSkip={() => navigate('/dashboard')} onBack={() => setStep('name_prompt')} />}
+                    {step === 'welcome' && <WelcomeScreen name={userName} onStart={() => setStep('survey')} onSkip={() => finishOnboarding(userName)} onBack={() => setStep('name_prompt')} />}
                     {step === 'survey' && <SurveyScreen onComplete={handleSurveyComplete} onBack={() => setStep('welcome')} />}
                 </div>
             </div>
