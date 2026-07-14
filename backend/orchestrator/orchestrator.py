@@ -43,15 +43,15 @@ class Orchestrator:
             print("Orchestrator WARNING: Database is empty!")
 
     async def get_or_create_state(self, user_id: str) -> AgentState:
-        # P1: Try to load from persistent DB
+        # P1: Return in-memory if available (always current within session)
+        if user_id in self.states:
+            return self.states[user_id]
+
+        # P2: Try to load from persistent DB (session resume)
         persisted_state = await self.persistence.load_state(user_id)
         if persisted_state:
             self.states[user_id] = persisted_state
             return persisted_state
-
-        # P2: If in-memory (fallback), return it
-        if user_id in self.states:
-             return self.states[user_id]
 
         # P3: Create New (and persist it immediately)
         # Check if user exists in loaded database (Excel)

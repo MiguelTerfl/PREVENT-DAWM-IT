@@ -27,28 +27,56 @@ This platform is intended for researching:
 - **Multi-Agent Orchestration**: A backend system that routes conversations between Intake, Motivation, Education, and Coaching agents.
 - **Persistence Strata**: Full state management ensuring that conversation history and psychographic assessments persist across sessions.
 
-### 4. Privacy and Security Features
+### 4. Authentication & Privacy
+- **Supabase Auth**: Email/password authentication with JWT validation. Dashboard, Chat, Settings, and Admin are protected routes — unauthenticated users are redirected to `/login`.
 - **Privacy by Design**: We follow the 7 principles of Privacy by Design. Detailed information is available in [CONCEPT_005_PRIVACY_BY_DESIGN.md](docs/concepts/CONCEPT_005_PRIVACY_BY_DESIGN.md).
-- **Security Features**: Secure authentication, role-based access control, and pseudonymized data processing are standard.
+- **Pseudonymized Data**: `user_id` (Supabase Auth UUID) maps to `prevent_id` at the persistence layer; no PII crosses that boundary.
 
 Detailed project requirements are documented in the [Product Requirements Document (PRD)](PRODUCT_REQUIREMENTS.md).
 
 To contribute, please see our [CONTRIBUTING.md](CONTRIBUTING.md) guide.
 
 ## Tech Stack
-- **Frontend**: React (Vite), TypeScript, Framer Motion (Animations), Tailwind CSS.
-- **Backend**: Python FastAPI, DSPy (LLM Orchestration).
-- **LLM**: Gemini 1.5 Flash (via Google AI Studio).
+- **Frontend**: React (Vite), TypeScript, Framer Motion (Animations), Tailwind CSS, Supabase Auth.
+- **Backend**: Python FastAPI, DSPy (LLM Orchestration), Supabase (PostgreSQL), SQLite (local fallback).
+- **LLM**: Gemini (Primary/Secondary/Tertiary failover via Google AI Studio) + OpenAI GPT-4o-mini (final fallback).
+- **Database & Auth**: Supabase (PostgreSQL + JWT authentication).
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- A [Supabase](https://supabase.com) project (free tier works)
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+
 ### Installation & Setup
 
-1. **Download the Repository**: Clone the repository or download the ZIP and extract it to your local machine.
-2. **Configure API Key**:
-   - Obtain a free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-   - Create a `.env` file in the `backend/` directory.
-   - Add your key: `GOOGLE_API_KEY=your_api_key_here`
+1.  **Clone the repo**:
+    ```bash
+    git clone <repository_url>
+    cd prevent-dawn2
+    ```
+
+2.  **Configure Backend environment**:
+    Create `backend/.env` (copy from `backend/.env.example`):
+    ```
+    GOOGLE_API_KEY=your_primary_gemini_key
+    GOOGLE_API_KEY_2=your_secondary_gemini_key   # optional, for failover
+    GOOGLE_API_KEY_3=your_tertiary_gemini_key    # optional, for failover
+    OPENAI_API_KEY=your_openai_key               # optional, final fallback
+    SUPABASE_URL=https://your-project-ref.supabase.co
+    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+    SUPABASE_JWT_SECRET=your_jwt_secret_from_supabase_dashboard
+    ```
+
+3.  **Configure Frontend environment**:
+    Create `frontend/.env` (copy from `frontend/.env.example`):
+    ```
+    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+    VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+    ```
 
 ### Quick Start
 
@@ -57,7 +85,7 @@ Double-click `start_app.bat`. This will:
 1.  Check for Node.js and Python.
 2.  Set up a Python virtual environment and install dependencies.
 3.  Launch both **Backend** and **Frontend** in separate windows.
-4.  Open your browser and navigate to `http://localhost:8000` to access the application.
+4.  Open your browser and navigate to `http://localhost:5173` to access the application.
 
 #### macOS / Linux
 1.  Open Terminal.
@@ -68,24 +96,21 @@ Double-click `start_app.bat`. This will:
 
 ### Manual Installation
 
-1.  **Clone the repo**:
-    ```bash
-    git clone <repository_url>
-    ```
-2.  **Setup Frontend**:
+1.  **Setup Frontend**:
     ```bash
     cd frontend
     npm install
-    npm run dev
+    npm run dev  # http://localhost:5173
     ```
-3.  **Setup Backend**:
+2.  **Setup Backend** (run from the **repo root**, not from inside `backend/`):
     ```bash
-    cd backend
     python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    pip install -r requirements.txt
-    python -m uvicorn main:app --reload
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install -r backend/requirements.txt
+    python -m uvicorn main:app --reload  # http://localhost:8000
     ```
+
+    > **Important**: `uvicorn` must be run from the repo root because the backend is imported as a package (`from backend.orchestrator...`). Running it from inside `backend/` will cause import errors.
 
 ## Testing
 
@@ -116,6 +141,11 @@ For detailed documentation on the testing architecture, mock patterns, and troub
     - Introduced the **Prismatic UI** (Glassmorphism, Outfit/Inter typography).
     - Added **Wellness Insights** (Strengths/Growth Nodes) for natural motivation.
     - Implemented global bottom navigation and mobile optimizations.
+- **v3.0 (Database & Auth Layer)**:
+    - Integrated **Supabase** for production-grade PostgreSQL persistence (agent state, patient profiles, conversation history).
+    - Added **Supabase Auth** (email/password) with JWT validation on the backend; all main routes are now protected.
+    - LLM failover stack: Gemini Primary → Secondary → Tertiary → OpenAI GPT-4o-mini.
+    - SQLite (`aiosqlite`) retained as a local development fallback when Supabase is unavailable.
 
 ## Contributing
 We use the **Task Decoupled Planning (TDP)** methodology for all development. Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) and the [TDP Protocol](docs/process/TDP_DEV_PROTOCOL.md) before submitting PRs.

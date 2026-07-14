@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from backend.orchestrator.orchestrator import Orchestrator
 from backend.models.data_models import OrchestratorRequest, OrchestratorResponse, PatientProfile
+from backend.services.auth import get_current_user, require_auth
 
 app = FastAPI()
 
@@ -101,9 +102,13 @@ async def get_config_info():
 # --- Chat Endpoints ---
 
 @app.post("/api/chat", response_model=OrchestratorResponse)
-async def chat(request: OrchestratorRequest):
+async def chat(request: OrchestratorRequest, current_user: dict = Depends(get_current_user)):
+    # JWT sub takes precedence; fall back to body user_id for dev/test
+    user_id = (current_user or {}).get("user_id") or request.user_id
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required when not authenticated.")
     try:
-        result = await orchestrator.process_request(request.user_id, request.user_input)
+        result = await orchestrator.process_request(user_id, request.user_input)
         
         # Robustly handle the response content
         raw_response = result.get("response")
@@ -162,6 +167,9 @@ async def lookup_patient(name: str):
 
 from backend.api.admin import router as admin_router
 app.include_router(admin_router)
+
+from backend.api.profile import router as profile_router
+app.include_router(profile_router)
 
 @app.get("/api/debug/state/{user_id}")
 async def get_state_debug(user_id: str):

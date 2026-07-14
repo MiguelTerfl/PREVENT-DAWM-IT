@@ -2,22 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, User, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Chat() {
+    const { user } = useAuth();
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [userId, setUserId] = useState(() => {
+
+    // Use the authenticated user's UUID; fall back to a persisted dev ID when unauthenticated
+    const userId = user?.id ?? (() => {
         const saved = localStorage.getItem('antigravity_userId');
         if (saved) return saved;
         const newId = `user_${Math.floor(Math.random() * 1000)}`;
         localStorage.setItem('antigravity_userId', newId);
         return newId;
-    });
-
-    useEffect(() => {
-        localStorage.setItem('antigravity_userId', userId);
-    }, [userId]);
+    })();
 
     const chatEndRef = useRef<HTMLDivElement>(null);
     const scrollToBottom = () => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }
@@ -83,15 +83,11 @@ export default function Chat() {
                         <span className="text-[9px] text-primary font-medium uppercase tracking-[0.3em]">Neural Assistance Active</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full scale-90">
+                <div className="glass-card px-3 py-1.5 rounded-full scale-90 flex items-center gap-2">
                     <span className="text-[9px] text-white/30 uppercase tracking-widest">ID:</span>
-                    <input
-                        type="text"
-                        value={userId}
-                        onChange={(e) => setUserId(e.target.value)}
-                        className="text-[9px] text-white/50 bg-transparent border-none focus:ring-0 p-0 w-16 font-light uppercase tracking-tighter"
-                        title="Unified Health ID"
-                    />
+                    <span className="text-[9px] text-white/50 font-light uppercase tracking-tighter" title="Unified Health ID">
+                        {userId.slice(0, 8)}…
+                    </span>
                 </div>
             </div>
 
