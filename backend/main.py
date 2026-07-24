@@ -171,6 +171,10 @@ app.include_router(admin_router)
 from backend.api.profile import router as profile_router
 app.include_router(profile_router)
 
+from backend.api.coach import router as coach_router
+app.include_router(coach_router)
+
+
 @app.get("/api/debug/state/{user_id}")
 async def get_state_debug(user_id: str):
     """

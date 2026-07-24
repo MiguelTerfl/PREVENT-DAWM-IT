@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { api } from '@/api/client'
 
 interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
+  role: string | null
+  displayName: string | null
+  preventId: string | null
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>
   signInWithGoogle: () => Promise<{ error: Error | null }>
@@ -19,18 +23,69 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [role, setRole] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
+  const [preventId, setPreventId] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true;
+
+    const fetchProfile = async (sessionToken: string | undefined) => {
+      if (!sessionToken) {
+        setRole(null)
+        setDisplayName(null)
+        setPreventId(null)
+        setLoading(false)
+        return
+      }
+      try {
+        const profile = await api.profile.getMe()
+        if (active) {
+          setRole(profile.role)
+          setDisplayName(profile.display_name)
+          setPreventId(profile.prevent_id)
+        }
+      } catch (err) {
+        console.error("AuthContext: Failed to fetch user profile details:", err)
+        if (active) {
+          setRole("patient") // Safe fallback
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
+      if (active) {
+        setSession(data.session)
+        if (data.session) {
+          fetchProfile(data.session.access_token)
+        } else {
+          setLoading(false)
+        }
+      }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+      if (active) {
+        setSession(session)
+        if (session) {
+          fetchProfile(session.access_token)
+        } else {
+          setRole(null)
+          setDisplayName(null)
+          setPreventId(null)
+          setLoading(false)
+        }
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false;
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
@@ -68,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signIn, signUp, signInWithGoogle, resetPassword, updatePassword, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, role, displayName, preventId, signIn, signUp, signInWithGoogle, resetPassword, updatePassword, signOut }}>
       {children}
     </AuthContext.Provider>
   )
@@ -79,3 +134,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
   return ctx
 }
+

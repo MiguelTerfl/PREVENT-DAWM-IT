@@ -21,3 +21,15 @@ async def onboarding_status(current_user: dict = Depends(require_auth)):
 async def complete_onboarding(body: CompleteOnboardingRequest, current_user: dict = Depends(require_auth)):
     await _persistence.complete_onboarding(current_user["user_id"], body.name)
     return {"status": "ok"}
+
+
+@router.get("/me")
+async def get_my_profile(current_user: dict = Depends(require_auth)):
+    return {
+        "id": current_user["user_id"],
+        "email": current_user.get("email"),
+        "role": current_user.get("role"),
+        "display_name": current_user.get("display_name"),
+        "prevent_id": current_user.get("prevent_id"),
+    }
+

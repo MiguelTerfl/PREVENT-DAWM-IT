@@ -15,15 +15,23 @@ import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import CoachDashboard from "./pages/CoachDashboard";
 import NotFound from "./pages/NotFound";
 import MainLayout from "./layout/MainLayout";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth()
+function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) {
+  const { session, loading, role } = useAuth()
   if (loading) return null
   if (!session) return <Navigate to="/login" replace />
+  
+  if (allowedRoles && role && !allowedRoles.includes(role)) {
+    if (role === "admin") return <Navigate to="/admin" replace />
+    if (role === "health_coach") return <Navigate to="/coach" replace />
+    return <Navigate to="/dashboard" replace />
+  }
+  
   return <>{children}</>
 }
 
@@ -45,10 +53,11 @@ const App = () => (
 
             {/* Protected routes with global layout */}
             <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/chat" element={<Chat />} />
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["patient", "admin"]}><Dashboard /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute allowedRoles={["patient", "admin"]}><Chat /></ProtectedRoute>} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><Admin /></ProtectedRoute>} />
+              <Route path="/coach" element={<ProtectedRoute allowedRoles={["health_coach", "admin"]}><CoachDashboard /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
@@ -58,5 +67,6 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+
 
 export default App;

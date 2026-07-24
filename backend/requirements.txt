@@ -11,3 +11,5 @@ aiosqlite
 openai
 supabase>=2.3.0
 postgrest>=0.16.0
+python-jose[cryptography]
+

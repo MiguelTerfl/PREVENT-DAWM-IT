@@ -1,20 +1,40 @@
 import React from 'react';
-import { Home, MessageCircle, Settings, ShieldAlert, Sparkles } from 'lucide-react';
+import { Home, MessageCircle, Settings, ShieldAlert, Sparkles, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navbar({ currentPage }: { currentPage: string }) {
     const navigate = useNavigate();
+    const { role } = useAuth();
+    
     return (
         <div className="bg-white/[0.02] backdrop-blur-2xl border-t border-white/5 px-6 py-5 flex-shrink-0 z-50">
             <div className="flex justify-around items-end max-w-sm mx-auto">
-                <NavButton icon={<Home />} label="Hub" active={currentPage === 'dashboard'} onClick={() => navigate('/dashboard')} />
-                <NavButton icon={<MessageCircle />} label="Dawn" active={currentPage === 'chat'} onClick={() => navigate('/chat')} />
+                {role === 'patient' && (
+                    <>
+                        <NavButton icon={<Home />} label="Hub" active={currentPage === 'dashboard'} onClick={() => navigate('/dashboard')} />
+                        <NavButton icon={<MessageCircle />} label="Dawn" active={currentPage === 'chat'} onClick={() => navigate('/chat')} />
+                    </>
+                )}
+                
+                {role === 'health_coach' && (
+                    <NavButton icon={<Users />} label="Patients" active={currentPage === 'coach'} onClick={() => navigate('/coach')} />
+                )}
+                
+                {role === 'admin' && (
+                    <>
+                        <NavButton icon={<Home />} label="Hub" active={currentPage === 'dashboard'} onClick={() => navigate('/dashboard')} />
+                        <NavButton icon={<MessageCircle />} label="Dawn" active={currentPage === 'chat'} onClick={() => navigate('/chat')} />
+                        <NavButton icon={<ShieldAlert />} label="Research" active={currentPage === 'admin'} onClick={() => navigate('/admin')} />
+                    </>
+                )}
+                
                 <NavButton icon={<Settings />} label="Config" active={currentPage === 'settings'} onClick={() => navigate('/settings')} />
-                <NavButton icon={<ShieldAlert />} label="Research" active={currentPage === 'admin'} onClick={() => navigate('/admin')} />
             </div>
         </div>
     );
 }
+
 
 function NavButton({ icon, label, active, onClick }: any) {
     return (

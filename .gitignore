@@ -12,6 +12,8 @@ backend/*$py.class
 backend/.env
 backend/venv/
 backend/env/
+myenv/
+
 
 # Frontend (Node)
 frontend/node_modules/

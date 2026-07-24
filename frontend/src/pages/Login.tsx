@@ -30,11 +30,20 @@ export default function Login() {
     }
 
     try {
-      const { onboarding_completed } = await api.profile.getOnboardingStatus()
-      navigate(onboarding_completed ? '/dashboard' : '/onboarding')
-    } catch {
+      const profile = await api.profile.getMe()
+      if (profile.role === 'admin') {
+        navigate('/admin')
+      } else if (profile.role === 'health_coach') {
+        navigate('/coach')
+      } else {
+        const { onboarding_completed } = await api.profile.getOnboardingStatus()
+        navigate(onboarding_completed ? '/dashboard' : '/onboarding')
+      }
+    } catch (err) {
+      console.error("Login: Failed to fetch profile details on login:", err)
       navigate('/onboarding')
     }
+
   }
 
   const handleGoogle = async () => {
